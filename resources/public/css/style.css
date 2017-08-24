@@ -1,0 +1,65 @@
+* {
+  margin: 0;
+  padding: 0;
+
+}
+
+body {
+  background-color: hsl(0, 0%, 7%);
+  color: hsl(0, 0%, 75%);
+  font-family: arial, sans-serif;
+}
+
+#stage {
+  float: left;
+}
+
+canvas {
+  background-color: #0f0;
+}
+
+#stage h2 {
+  text-align: center;
+}
+
+#nav {
+  float: left;
+  width: 200px;
+  padding-left: 15px;
+}
+
+#nav h2 {
+  color: hsl(0, 0%, 95%);
+}
+
+#nav li {
+  list-style-type: none;
+  padding-left: 10px;
+}
+
+#nav button {
+  background-color: black;
+  color: hsl(0, 0%, 75%);
+  border: 0;
+}
+
+#nav button:focus,
+#nav button:active {
+  outline: none;
+}
+
+#nav button:hover {
+  text-decoration: underline;
+  color: hsl(0, 0%, 90%);
+  transition-property: color;
+  transition-duration: 0.25s;
+}
+
+#nav .selected button {
+  font-weight: bold;
+  color: hsl(0, 0%, 90%);
+}
+
+#nav .selected button:hover:disabled {
+  text-decoration: none;
+}
