@@ -1,4 +1,4 @@
-(defproject dankreek/lik-m-aid "0.0.1-SNAPSHOT"
+(defproject dankreek/lik-m-aid "0.0.1"
   :description "A 2d canvas sprite library for ClojureScript"
   :url "http://github.com/dankreek/lik-m-aid"
   :license {:name "Eclipse Public License"
