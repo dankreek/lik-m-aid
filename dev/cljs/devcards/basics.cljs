@@ -21,14 +21,15 @@
 (defn render
   [frame-delta]
   (let [tick (swap! *tick + frame-delta)]
-    [(lma/sprite {:texture :bob
-                  :x (/ width 2)
-                  :y (/ height 2)
-                  :anchor 0.5
-                  :scale (-> tick
-                             (* speed)
-                             Math/sin
-                             (* magnitude))})]))
+    (lma/container {}
+      (lma/sprite {:texture :bob
+                   :x (/ width 2)
+                   :y (/ height 2)
+                   :anchor 0.5
+                   :scale (-> tick
+                              (* speed)
+                              Math/sin
+                              (* magnitude))}))))
 
 (defn -main [node]
   (lma/update-sys-config! application

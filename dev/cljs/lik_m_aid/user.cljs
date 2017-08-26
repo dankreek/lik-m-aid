@@ -25,19 +25,20 @@
   [time-delta]
   ;; XXX: Create generators here
   (let [frame (swap! frame + time-delta)]
-    [(lma/sprite {:texture :bob
-                  :anchor 0.5
-                  :scale 10
-                  :rotation (/ Math/PI 2)
-                  :x (/ width 2)
-                  :y (/ height 2)})
+    (lma/container {}
+      (lma/sprite {:texture :bob
+                   :anchor 0.5
+                   :scale 10
+                   :rotation (/ Math/PI 2)
+                   :x (/ width 2)
+                   :y (/ height 2)})
 
-     (lma/animated-sprite {:textures ninja-frames
-                           :x (-> (* frame 1.50) (mod width))
-                           :y (/ height 2)
-                           :animation-speed 0.095
-                           :scale [-18 18]
-                           :anchor 0.5})]))
+      (lma/animated-sprite {:textures ninja-frames
+                            :x (-> (* frame 1.50) (mod width))
+                            :y (/ height 2)
+                            :animation-speed 0.095
+                            :scale [-18 18]
+                            :anchor 0.5}))))
 
 (defn -main []
   (lma/update-sys-config! app {:background-color 0x102030

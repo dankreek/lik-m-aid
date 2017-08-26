@@ -875,13 +875,6 @@
   true)
 
 
-(defn wrap-stage-with-v-node
-  "Given a vector of virtual graph nodes, create a virtual graph with a
-  container and its properties as the root with the nodes as the children."
-  [nodes stage-props]
-  (rekt/object-v-node container-config stage-props nodes))
-
-
 (defn new-system
   ([] (new-system false))
   ([anti-alias?]
@@ -919,14 +912,11 @@
          render-ticker-cb (fn [time-delta]
                             (when-let [render-cb @*render-cb]
                               (binding [*current-sys* new-system]
-                                (let [v-dom-elements (render-cb time-delta)]
-                                  (when (not= v-dom-elements (rekt/virtual-node-children (rekt/-get-virtual-graph stage)))
-                                    (println "a change is coming"))
-                                  (assert (or (= 0 (count v-dom-elements)) (rekt/virtual-graph? (first v-dom-elements)))
-                                          "The render callback must return a sequence of virtual graph nodes.")
-                                  (rekt/re-render-graph! stage (wrap-stage-with-v-node
-                                                                    v-dom-elements
-                                                                    (rekt/get-object-props stage)))))))]
+                                (let [v-graph (render-cb time-delta)]
+                                  (assert (and (rekt/virtual-graph? v-graph)
+                                               (= container-config (rekt/virtual-node-type-desc v-graph)))
+                                          "The render callback must return a Container as the root of the virtual graph")
+                                  (rekt/re-render-graph! stage v-graph)))))]
      (set-callbacks! loader {:on-error on-error
                              :on-loaded on-loaded
                              :on-unload on-unload
