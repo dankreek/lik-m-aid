@@ -211,16 +211,15 @@
   (assert (vector? resource-keys)
           "An animate sprite's texture list must be a vector of texture keys.")
   (let [textures (register-textures pixi-obj resource-keys)]
+    ;; XXX: should the array be reset or manipulated?
     (set! (.-textures pixi-obj)
-          (clj->js (mapv (fn [key] (get textures key)) resource-keys)))))
+          (clj->js (mapv (fn [key] (get textures key)) resource-keys)))
+    (.play pixi-obj)))
 
 
 (defn- set-animation-speed
   [pixi-obj _ speed]
-  (set! (.-animationSpeed pixi-obj) speed)
-  (if (not= 0 speed)
-    (.play pixi-obj)
-    (.stop pixi-obj)))
+  (set! (.-animationSpeed pixi-obj) speed))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -759,7 +758,7 @@
       reg)))
 
 
-(deftype System [app *props *callbacks *render-cb stage *registered-textures *state]
+(deftype System [app *props *callbacks *render-cb stage *registered-textures]
   ISystem
   (render [this mount-elem render-cb]
     (assert (instance? js/HTMLElement mount-elem)
@@ -884,10 +883,8 @@
 
 
 (defn new-system
-  ([] (new-system (atom {})))
-  ([*state]
-   (new-system *state false))
-  ([*state anti-alias?]
+  ([] (new-system false))
+  ([anti-alias?]
     ;; TODO: stupid work-around... fix in rektify later
    (swap! rekt/*generator-registry {})
    (let [pixi-app (new js/PIXI.Application #js {"antialias" anti-alias?})
@@ -899,7 +896,7 @@
          *props (atom {} :validator system-props-validator)
          *render-cb (atom nil :validator render-cb-validator)
          *registered-textures (atom {})
-         new-system (->System pixi-app *props *callbacks *render-cb stage *registered-textures *state)
+         new-system (->System pixi-app *props *callbacks *render-cb stage *registered-textures)
          on-error (fn [key e]
                     (when-let [cb (:on-load-error @*callbacks)] (cb key e)))
          on-loaded (fn [key]
@@ -923,12 +920,13 @@
                             (when-let [render-cb @*render-cb]
                               (binding [*current-sys* new-system]
                                 (let [v-dom-elements (render-cb time-delta)]
+                                  (when (not= v-dom-elements (rekt/virtual-node-children (rekt/-get-virtual-graph stage)))
+                                    (println "a change is coming"))
                                   (assert (or (= 0 (count v-dom-elements)) (rekt/virtual-graph? (first v-dom-elements)))
                                           "The render callback must return a sequence of virtual graph nodes.")
                                   (rekt/re-render-graph! stage (wrap-stage-with-v-node
                                                                     v-dom-elements
-                                                                    (rekt/get-object-props stage))
-                                                         *state)))))]
+                                                                    (rekt/get-object-props stage)))))))]
      (set-callbacks! loader {:on-error on-error
                              :on-loaded on-loaded
                              :on-unload on-unload
@@ -944,7 +942,7 @@
 
 (defn container
   [props & children]
-  (rekt/object-v-node container-config props children))
+  (rekt/object-v-node container-config props (vec children)))
 
 
 (defn sprite
@@ -968,6 +966,3 @@
   ([generator-def props]
    (rekt/generator-v-node generator-def props)))
 
-(def update-in-state rekt/update-in-state)
-(def assoc-in-state rekt/assoc-in-state)
-(def get-in-state rekt/get-in-state)
