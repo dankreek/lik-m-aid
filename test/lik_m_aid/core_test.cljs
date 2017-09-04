@@ -61,6 +61,42 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Generators
+
+(deftest pixi-objects-from-generators
+  (testing "Trees can be generated"
+    (let [gen-1 {:render (fn [props _]
+                           (lma/container {}
+                             (lma/sprite {:x 1})
+                             (lma/animated-sprite {:x 2})))}
+
+          gen-2 {:render (fn [props _]
+                           (lma/container {}
+                             (lma/sprite {:x 1})))}
+          g (rekt/reify-virtual-graph
+              (lma/container {}
+                (lma/generator gen-1)))
+          gz (pixi-zip g)
+          c0 (-> gz z/down z/node)
+          s0 (-> gz z/down z/down z/node)
+          as0 (-> gz z/down z/down z/right z/node)]
+      (is (instance? js/PIXI.Container g))
+      (is (instance? js/PIXI.Sprite s0))
+      (is (instance? js/PIXI.extras.AnimatedSprite as0))
+
+      (testing "and re-rendered with new generator"
+        (let [g1 (rekt/re-render-graph!
+                   g (lma/container {}
+                       (lma/generator gen-2)))
+              c1 (-> gz z/down z/node)
+              s1 (-> gz z/down z/down z/node)]
+          (is (= true (.-_destroyed as0)) "The last child was destroyed")
+          (is (= g1 g) "New graph roots are the same")
+          (is (= c1 c0) "Container objects are the same")
+          (is (= s1 s0) "Sprite objects are the same"))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Primitive object tests
 
 ;; TODO: Redo most of these tests to make them more applicable to lik-m-aid and less general to rektfy
@@ -220,7 +256,7 @@
 
 (deftest system
   (testing "Renderer properties can be set"
-    (let [sys (lma/new-system)]
+    (let [sys (lma/create-system)]
       (lma/update-sys-config! sys
                               {:background-color 0x123456
                                :dimensions [123 456]}
@@ -232,7 +268,7 @@
 
 
   (testing "Stage properties can be set"
-    (let [sys (lma/new-system)]
+    (let [sys (lma/create-system)]
       (lma/update-sys-config! sys {:x 320 :y 200} {})
       (is (= 320 (.. sys -app -stage -x)))
       (is (= 200 (.. sys -app -stage -y)))
@@ -240,7 +276,7 @@
 
 
   (testing "Loader base url is set and callbacks are all called"
-    (let [sys (lma/new-system)
+    (let [sys (lma/create-system)
           *called-cbs (atom [])
           mark-cb (fn [cb-key]
                     (swap! *called-cbs conj cb-key))
@@ -266,7 +302,7 @@
 
 (deftest system-mount-and-render-callback
   (testing "The system's canvas can be mounted and can execute a render"
-    (let [sys (lma/new-system)
+    (let [sys (lma/create-system)
           ticker (.. sys -app -ticker)
           stage (.. sys -app -stage)
           mount-point (dom/createElement "div")
@@ -287,7 +323,7 @@
 
 
 (deftest system-registers-and-delivers-textures
-  (let [sys (lma/new-system)
+  (let [sys (lma/create-system)
         *textures-set (atom {})
         fake-sprite (reify lma/IHasTextures
                       (-set-textures
@@ -347,7 +383,7 @@
 (deftest system-sets-texture-when-loaded
   (testing "Application sets a sprite's texture when loaded"
     (let [mount-point (dom/createElement "div")
-          sys (lma/new-system)
+          sys (lma/create-system)
           loading-while-open (</chan)
           *texture-set (atom nil)
           fake-sprite (reify lma/IHasTextures
@@ -368,7 +404,7 @@
 (deftest system-correctly-registers-textures-for-objects
   (testing "Application correctly registers and re-registers an object's texture key"
     (let [mount-point (dom/createElement "div")
-          sys (lma/new-system)
+          sys (lma/create-system)
           *registered-textures (.-*registered-textures sys)
           stage (.. sys -app -stage)
           render-cb-ch (</chan)
@@ -410,7 +446,7 @@
 (deftest system-correctly-updates-a-texture-key-url
   (testing "Application correctly updates a texture's URL"
     (let [mount-point (dom/createElement "div")
-          sys (lma/new-system)
+          sys (lma/create-system)
           test-ch (</chan)
           *callbacks (atom [])
           *set-texture (atom nil)
@@ -434,7 +470,7 @@
 
 (deftest system-provides-sprite-sheet-frames
   (testing "Application loads and applies sprite sheet frames"
-    (let [sys (lma/new-system)
+    (let [sys (lma/create-system)
           *set-textures (atom #{})
           *non-empty-textures (atom 0)
           open-while-loading (</chan)
@@ -467,7 +503,7 @@
   (let [mount-point (dom/createElement "div")
         *state (atom {:initial-state 0})
         *states-read-from-gen (atom [])
-        sys (lma/new-system *state)
+        sys (lma/create-system *state)
         gen {:render (fn [props _]
                        (lma/assoc-in-state [:assoc-in] props)
                        (lma/update-in-state [:update-in] conj props)
