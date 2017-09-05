@@ -67,15 +67,17 @@
   (testing "Trees can be generated"
     (let [gen-1 {:render (fn [props _]
                            (lma/container {}
-                             (lma/sprite {:x 1})
-                             (lma/animated-sprite {:x 2})))}
+                             (lma/sprite props)
+                             (lma/animated-sprite props)))}
 
           gen-2 {:render (fn [props _]
                            (lma/container {}
-                             (lma/sprite {:x 1})))}
+                             (lma/sprite props)))}
+
           g (rekt/reify-virtual-graph
               (lma/container {}
-                (lma/generator gen-1)))
+                (lma/generator gen-1 {:x 0})))
+
           gz (pixi-zip g)
           c0 (-> gz z/down z/node)
           s0 (-> gz z/down z/down z/node)
@@ -83,17 +85,34 @@
       (is (instance? js/PIXI.Container g))
       (is (instance? js/PIXI.Sprite s0))
       (is (instance? js/PIXI.extras.AnimatedSprite as0))
+      (is (= 0 (.-x s0)) "Sprite's props were set")
+      (is (= 0 (.-x as0)) "Animated Sprite's props were set")
+
+      (testing "and re-rendered with the same generator"
+        (let [g1 (rekt/re-render-graph!
+                   g (lma/container {}
+                       (lma/generator gen-1 {:x 1})))
+              c1 (-> gz z/down z/node)
+              s1 (-> gz z/down z/down z/node)
+              as1 (-> gz z/down z/down z/right z/node)]
+          (is (= g1 g) "Graph roots are the same")
+          (is (= c1 c0))
+          (is (= s1 s0))
+          (is (= as1 as0))
+          (is (= 1 (.-x s1)) "Sprite's props were updated")
+          (is (= 1 (.-x as1)) "Sprite's props were updated")))
 
       (testing "and re-rendered with new generator"
         (let [g1 (rekt/re-render-graph!
                    g (lma/container {}
-                       (lma/generator gen-2)))
+                       (lma/generator gen-2 {:x 42})))
               c1 (-> gz z/down z/node)
               s1 (-> gz z/down z/down z/node)]
           (is (= true (.-_destroyed as0)) "The last child was destroyed")
           (is (= g1 g) "New graph roots are the same")
           (is (= c1 c0) "Container objects are the same")
-          (is (= s1 s0) "Sprite objects are the same"))))))
+          (is (= s1 s0) "Sprite objects are the same")
+          (is (= 42 (.-x s1)) "Sprite's properties were updated"))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

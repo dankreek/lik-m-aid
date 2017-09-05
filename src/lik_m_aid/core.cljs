@@ -320,9 +320,11 @@
      :constructor js/PIXI.extras.TilingSprite
      :constructor-list [[:texture-obj]
                         [:texture-obj :width :height]]
-     :default-props (rekt/get-existing-object-properties
-                      (js/PIXI.extras.TilingSprite. empty-texture)
-                      tiling-sprite-prop-map)}))
+     :default-props (assoc
+                      (rekt/get-existing-object-properties
+                         (js/PIXI.extras.TilingSprite. empty-texture)
+                         tiling-sprite-prop-map)
+                      :texture nil)}))
 
 
 (def animated-sprite-config
@@ -345,9 +347,11 @@
      :destructor (fn [this]
                    (unregister-object this)
                    (pixi-destroy! this))
-     :default-props (rekt/get-existing-object-properties
-                      (js/PIXI.extras.AnimatedSprite. #js [empty-texture])
-                      animated-sprite-prop-map)}))
+     :default-props (assoc
+                      (rekt/get-existing-object-properties
+                        (js/PIXI.extras.AnimatedSprite. #js [empty-texture])
+                        animated-sprite-prop-map)
+                      :textures [])}))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
