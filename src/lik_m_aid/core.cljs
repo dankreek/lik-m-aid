@@ -301,7 +301,7 @@
                              (set! (.-texture this) (first (vals textures-map))))))
      :destructor (fn [this]
                    (unregister-object this)
-                   (.destroy this))}))
+                   (pixi-destroy! this))}))
 
 (def sprite-config
   (merge
@@ -320,9 +320,11 @@
      :constructor js/PIXI.extras.TilingSprite
      :constructor-list [[:texture-obj]
                         [:texture-obj :width :height]]
-     :default-props (rekt/get-existing-object-properties
-                      (js/PIXI.extras.TilingSprite. empty-texture)
-                      tiling-sprite-prop-map)}))
+     :default-props (assoc
+                      (rekt/get-existing-object-properties
+                         (js/PIXI.extras.TilingSprite. empty-texture)
+                         tiling-sprite-prop-map)
+                      :texture nil)}))
 
 
 (def animated-sprite-config
@@ -344,10 +346,12 @@
                                    (recur (inc i))))))))
      :destructor (fn [this]
                    (unregister-object this)
-                   (.destroy this))
-     :default-props (rekt/get-existing-object-properties
-                      (js/PIXI.extras.AnimatedSprite. #js [empty-texture])
-                      animated-sprite-prop-map)}))
+                   (pixi-destroy! this))
+     :default-props (assoc
+                      (rekt/get-existing-object-properties
+                        (js/PIXI.extras.AnimatedSprite. #js [empty-texture])
+                        animated-sprite-prop-map)
+                      :textures [])}))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -718,6 +722,10 @@
 ;; System
 
 (defprotocol ISystem
+  (-render-cb
+    [this]
+    "Return this system's render callback")
+
   (render [this parent-elem render-cb]
     "Start the rendering loop using the provided `render-cb` as the render
     callback and `parent-elem` as the DOM element which should have the canvas
@@ -760,6 +768,16 @@
 
 (deftype System [app *props *callbacks *render-cb stage *registered-textures]
   ISystem
+  (-render-cb [this]
+    (fn [time-delta]
+      (when-let [render-cb @*render-cb]
+        (binding [*current-sys* this]
+          (let [v-graph (render-cb time-delta)]
+            (assert (and (rekt/virtual-graph? v-graph)
+                         (= container-config (rekt/virtual-node-type-desc v-graph)))
+                    "The render callback must return a Container as the root of the virtual graph")
+            (rekt/re-render-graph! stage v-graph))))))
+
   (render [this mount-elem render-cb]
     (assert (instance? js/HTMLElement mount-elem)
             "The provided mount point to is not a valid DOM element.")
@@ -875,8 +893,8 @@
   true)
 
 
-(defn new-system
-  ([] (new-system false))
+(defn create-system
+  ([] (create-system false))
   ([anti-alias?]
     ;; TODO: stupid work-around... fix in rektify later
    (swap! rekt/*generator-registry {})
@@ -908,22 +926,15 @@
          on-progress (fn [percent]
                        (when-let [cb (:on-load-progress @*callbacks)] (cb percent)))
          on-done-loading (fn [] (when-let [cb (:on-load-complete @*callbacks)] (cb)))
-         on-start-loading (fn [] (when-let [cb (:on-load-start @*callbacks)] (cb)))
-         render-ticker-cb (fn [time-delta]
-                            (when-let [render-cb @*render-cb]
-                              (binding [*current-sys* new-system]
-                                (let [v-graph (render-cb time-delta)]
-                                  (assert (and (rekt/virtual-graph? v-graph)
-                                               (= container-config (rekt/virtual-node-type-desc v-graph)))
-                                          "The render callback must return a Container as the root of the virtual graph")
-                                  (rekt/re-render-graph! stage v-graph)))))]
+         on-start-loading (fn [] (when-let [cb (:on-load-start @*callbacks)] (cb)))]
      (set-callbacks! loader {:on-error on-error
                              :on-loaded on-loaded
                              :on-unload on-unload
                              :on-progress on-progress
                              :on-start-loading on-start-loading
                              :on-done-loading on-done-loading})
-     (.add (.-ticker pixi-app) render-ticker-cb nil (inc js/PIXI.UPDATE_PRIORITY.LOW))
+     ;; TODO: Put actual loader callbacks in system and refer to them like -render-cb below
+     (.add (.-ticker pixi-app) (-render-cb new-system) nil (inc js/PIXI.UPDATE_PRIORITY.LOW))
      new-system)))
 
 

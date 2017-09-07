@@ -13,7 +13,7 @@
 
 ;; TODO: Figure out how to put this in the API
 (set! (.. js/PIXI -settings -SCALE_MODE) js/PIXI.SCALE_MODES.NEAREST)
-(defonce app (lma/new-system))
+(defonce app (lma/create-system))
 (defonce frame (atom 0))
 
 (def ninja-frames [[:ninja "1.png"]

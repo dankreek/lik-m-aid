@@ -4,7 +4,7 @@
   (:require [lik-m-aid.core :as lma]
             [goog.dom :as dom]))
 
-(defonce application (lma/new-system))
+(defonce application (lma/create-system))
 (defonce *tick (atom 0.0))
 
 (def bob-url "img/bob.png")
