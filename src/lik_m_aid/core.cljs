@@ -10,6 +10,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 
+(def set-prop!
+  "Function used to set a property value on an object."
+  object/set)
+
+
+(def get-prop
+  "Function used to get a property's value from an object."
+  object/get)
+
+
 (def empty-texture js/PIXI.Texture.EMPTY)
 
 
@@ -145,26 +155,23 @@
     (if (nil? pixi-val)
       (throw (js/Error. (str "Blend mode can only be one of the following values: "
                              (str/join ", " (keys blend-modes)))))
-      (aset pixi-obj property (get blend-modes val)))))
+      (set-prop! pixi-obj property (get blend-modes val)))))
 
 
 (defn- get-blend-mode
   [pixi-obj property]
-  (let [pixi-blend-mode (aget pixi-obj property)]
+  (let [pixi-blend-mode (get-prop pixi-obj property)]
     (first (filter #(= (get blend-modes %) pixi-blend-mode) (keys blend-modes)))))
 
 
 (defn- set-point!
-  ;; XXX: Clean this up to the minimum of what's needed
-  "This function has the same signature as `aset` but the last argument is
-  interperated as a PixiJS Point. The point value can be either a vector of two
-  numbers in the form of [X Y], a single number which will be set to both
-  coordinates, or an instance of a Pixi Point or ObserveablePoint, in which case
-  the X and Y coordinates will be copied to the destination object."
-  [pixi-obj & args]
-  (let [val (last args)
-        path (butlast args)
-        dest-point (apply aget pixi-obj path)]
+  "The property setter for the PixiJS Point/ObserveablePoint types.
+  The value of this setter can be either a vector of two numbers in the form of
+  [X Y], a single number which will be set to both coordinates, or an instance
+  of a PixiJS Point or ObserveablePoint, in which case the X and Y coordinates
+  will be copied to the destination object."
+  [pixi-obj path val]
+  (let [dest-point (get-prop pixi-obj path)]
     (cond
       (number? val)
       (.set dest-point val)
@@ -180,7 +187,7 @@
       (throw
         (js/Error. (str "A Point/ObserveablePoint type must be a single number, "
                         "a vector of size 2 or a Point/ObserveablePoint object. "
-                        "Tried to apply: " args " to " path))))))
+                        "Tried to apply: " val " to " path))))))
 
 
 (defn- get-point
@@ -188,7 +195,7 @@
   Point object. Returns a size-2 vector consisting of the coodinated in the
   form of [X Y]. Throws an exception if a Point type is not found."
   [pixi-obj property]
-  (let [point (aget pixi-obj property)]
+  (let [point (get-prop pixi-obj property)]
     (if (or (instance? js/PIXI.ObservablePoint point)
             (instance? js/PIXI.Point point))
       [(.-x point) (.-y point)]
@@ -226,34 +233,34 @@
 ;; Property configs
 
 (def display-object-prop-map
-  {:alpha {:property "alpha" :setter aset :getter aget}
-   :button-mode? {:property "buttonMode" :setter aset :getter aget}
-   :cache-as-bitmap? {:property "cacheAsBitmap" :setter aset :getter aget}
-   :cursor {:property "cursor" :setter aset :getter aget}
-   :mask {:property "mask" :setter aset :getter aget}
+  {:alpha {:property "alpha" :setter set-prop! :getter get-prop}
+   :button-mode? {:property "buttonMode" :setter set-prop! :getter get-prop}
+   :cache-as-bitmap? {:property "cacheAsBitmap" :setter set-prop! :getter get-prop}
+   :cursor {:property "cursor" :setter set-prop! :getter get-prop}
+   :mask {:property "mask" :setter set-prop! :getter get-prop}
    :pivot {:property "pivot" :setter set-point! :getter get-point}
-   :renderable? {:property "renderable" :setter aset :getter aget}
-   :rotation {:property "rotation" :setter aset :getter aget}
+   :renderable? {:property "renderable" :setter set-prop! :getter get-prop}
+   :rotation {:property "rotation" :setter set-prop! :getter get-prop}
    :scale {:property "scale" :setter set-point! :getter get-point}
    :skew {:property "skew" :setter set-point! :getter get-point}
-   :visible? {:property "visible" :setter aset :getter aget}
-   :x {:property "x" :setter aset :getter aget}
-   :y {:property "y" :setter aset :getter aget}})
+   :visible? {:property "visible" :setter set-prop! :getter get-prop}
+   :x {:property "x" :setter set-prop! :getter get-prop}
+   :y {:property "y" :setter set-prop! :getter get-prop}})
 
 
 (def container-prop-map
   (merge display-object-prop-map
-         {:width {:property "width" :setter aset :getter aget}
-          :height {:property "height" :setter aset :getter aget}}))
+         {:width {:property "width" :setter set-prop! :getter get-prop}
+          :height {:property "height" :setter set-prop! :getter get-prop}}))
 
 
 (def sprite-prop-map
   (merge container-prop-map
          {:anchor {:property "anchor" :setter set-point! :getter get-point}
-          :tint {:property "tint" :setter aset :getter aget}
+          :tint {:property "tint" :setter set-prop! :getter get-prop}
           :blend-mode {:property "blendMode" :setter set-blend-mode! :getter get-blend-mode}
           :texture {:property "texture" :setter set-texture-resource}
-          :texture-obj {:property "texture" :getter aget}}))
+          :texture-obj {:property "texture" :getter get-prop}}))
 
 
 (def tiling-sprite-prop-map
@@ -265,10 +272,10 @@
 (def animated-sprite-prop-map
   (-> sprite-prop-map
       (dissoc :texture :texture-obj)
-      (merge {:on-loop {:property "onLoop" :setter aset :getter aget}
-              :animation-speed {:property "animationSpeed" :setter set-animation-speed :getter aget}
+      (merge {:on-loop {:property "onLoop" :setter set-prop! :getter get-prop}
+              :animation-speed {:property "animationSpeed" :setter set-animation-speed :getter get-prop}
               :textures {:property "textures" :setter set-textures-list}
-              :textures-arr {:property "textures" :getter aget}})))
+              :textures-arr {:property "textures" :getter get-prop}})))
 
 
 (def container-object-child-accessors
@@ -338,11 +345,15 @@
                            IHasTextures
                            (-set-textures [this textures-map]
                              (let [textures-list (rekt/get-object-prop this :textures)
-                                   textures-obj (.-textures this)]
+                                   textures-arr (.-textures this)]
                                (loop [i 0]
                                  (when-let [key (nth textures-list i false)]
                                    (when (contains? textures-map key)
-                                     (aset textures-obj i (get textures-map key)))
+                                     (aset textures-arr i (get textures-map key))
+                                     ;; XXX: set-prop! also works with arrays?
+                                     #_(set-prop! textures-arr i (get textures-map key))
+
+                                     )
                                    (recur (inc i))))))))
      :destructor (fn [this]
                    (unregister-object this)
@@ -429,7 +440,7 @@
       (let [resources (.-resources loader)
             base-image-name (str resource-name "_image")]
         (object/remove resources resource-name)
-        (.destroy (aget resources base-image-name "texture"))
+        (.destroy (.-texture (object/get resources base-image-name)))
         (object/remove resources base-image-name))
       (.destroy this true))))
 
@@ -441,9 +452,10 @@
     (resource-child-keys [_ _] [])
     (resource-destroy
       [this loader resource-name]
-      (.destroy (aget loader "resources" resource-name "texture") true)
-      (object/remove (.-resources loader) resource-name)
-      (.destroy this))))
+      (let [resources (.-resources loader)]
+        (.destroy (.-texture (object/get resources resource-name)) true)
+        (object/remove resources resource-name)
+        (.destroy this)))))
 
 
 (defn- resource-key->name
@@ -488,7 +500,7 @@
 
 (defn- get-object-from-loader
   [loader-obj resource-name]
-  (when-let [resource (aget loader-obj "resources" resource-name)]
+  (when-let [resource (object/get (.-resources loader-obj) resource-name)]
     (get-resource-object resource)))
 
 
@@ -518,7 +530,7 @@
                    (.add loader-obj (resource-key->name resource-key) url))
                  ;; For some reason the loader doesn't reset its progress by itself
                  (set! (.-progress loader-obj) 0)
-                 ;; Start loading
+                 ; Start loading
                  (.load loader-obj))
                ;; Return an empty state
                {})))
@@ -574,7 +586,7 @@
 
 
 (def loader-prop-map
-  {:base-url {:property "baseUrl" :setter aset :getter aget}})
+  {:base-url {:property "baseUrl" :setter set-prop! :getter get-prop}})
 
 
 (def loader-config
@@ -697,12 +709,12 @@
 
 (def renderer-prop-map
   {:dimensions {:setter set-renderer-dimensions :getter get-renderer-dimensions}
-   :transparent? {:property "transparent" :setter aset :getter aget}
-   :auto-resize? {:property "autoResize" :setter aset :getter aget}
-   :pixel-ratio {:property "resolution" :setter aset :getter aget}
-   :clear-before-render? {:property "clearBeforeRender" :setter aset :getter aget}
-   :background-color {:property "backgroundColor" :setter aset :getter aget}
-   :round-pixels? {:property "roundPixels" :setter aset :getter aget}})
+   :transparent? {:property "transparent" :setter set-prop! :getter get-prop}
+   :auto-resize? {:property "autoResize" :setter set-prop! :getter get-prop}
+   :pixel-ratio {:property "resolution" :setter set-prop! :getter get-prop}
+   :clear-before-render? {:property "clearBeforeRender" :setter set-prop! :getter get-prop}
+   :background-color {:property "backgroundColor" :setter set-prop! :getter get-prop}
+   :round-pixels? {:property "roundPixels" :setter set-prop! :getter get-prop}})
 
 
 (def renderer-config
