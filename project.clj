@@ -20,7 +20,7 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.660"]
-                 [cljsjs/pixi "4.5.5-0"]
+                 [cljsjs/pixi "4.5.6-0"]
                  [dankreek/rektify "0.0.6"]]
 
   :plugins [[lein-figwheel "0.5.11"]
