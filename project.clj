@@ -54,11 +54,12 @@
                {:id "test"
                 :source-paths ["src" "test"]
                 :compiler {:main runners.doo
-                           :asset-path "/js/out"
                            :output-to "target/test.js"
                            :output-dir "target/cljstest/public/js/out"
-                           :optimizations :whitespace
-                           :libs ["test/js/test.classes.js"]}}
+                           :optimizations :none
+                           :source-map true
+                           :source-map-timestamp true
+                           :parallel-build true}}
 
                {:id "devcards"
                 :source-paths ["src" "dev/cljs"
